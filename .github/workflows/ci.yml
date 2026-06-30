@@ -52,7 +52,7 @@ jobs:
       - name: Assert no unrendered Jinja delimiters
         run: |
           # -P (PCRE) so the (?<!\$) negative-lookbehind fires — it excludes legitimately-static
-          # GitHub Actions ${{ }} while still catching real unrendered {{ }} / {% %} / {# #}.
+          # GitHub Actions $-prefixed expressions while still catching real unrendered {{ }} / {% %} / {# #}.
           if grep -rP '(?<!\$)\{\{|\{%|\{#' /tmp/py-render; then
             echo "Unrendered Jinja delimiters found"; exit 1
           fi
