@@ -34,8 +34,10 @@ jobs:
       - name: Render composed (base -> python overlay)
         run: |
           rm -rf /tmp/py-render
-          uvx copier copy --defaults --trust --vcs-ref HEAD "${BASE_REF}" /tmp/py-render
-          uvx copier copy --defaults --trust --vcs-ref HEAD . /tmp/py-render
+          # --overwrite: the second (overlay) copy intentionally overwrites base-shipped files it
+          # also ships (compose-overwrite carry-forward); without it copier conflict-prompts.
+          uvx copier copy --defaults --overwrite --trust --vcs-ref HEAD "${BASE_REF}" /tmp/py-render
+          uvx copier copy --defaults --overwrite --trust --vcs-ref HEAD . /tmp/py-render
 
       - name: Assert both answers files present (independent overlay linkage)
         run: |
@@ -79,11 +81,14 @@ jobs:
           git init -q
           git add -A
           uvx pre-commit run --all-files
+          # Commit the rendered baseline so the idempotency step can diff against a real HEAD
+          # (git diff --cached with no commit compares to the empty tree => always "diff").
+          git add -A
+          git -c user.email=ci@local -c user.name=ci commit -q -m "rendered baseline"
 
       - name: Idempotent re-render yields no diff
         run: |
           cd /tmp/py-render
-          git add -A
-          uvx copier recopy --defaults --trust -a .copier-answers.python.yml
+          uvx copier recopy --defaults --overwrite --trust -a .copier-answers.python.yml
           git add -A
           git diff --cached --quiet || { echo "recopy produced a diff:"; git diff --cached; exit 1; }
