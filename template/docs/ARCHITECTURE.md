@@ -31,7 +31,7 @@ into **one shared virtual environment** (`.venv`).
   uv.lock                   # single resolved lock for the whole workspace (run `uv lock` post-render)
   packages/
     platform-core/          # pydantic-ai governance-audit agent (in-process tool)
-  services/                 # deployable members (none in this baseline; added by mcp-capability)
+  services/                 # deployable members (populated by the mcp-capability overlay)
   tests/
     test_structure.py       # structure-lint gate (per repo-structure-standard)
     unit/                   # offline behaviour + golden eval
