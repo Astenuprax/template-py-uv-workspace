@@ -1,0 +1,89 @@
+# Render-gate — this overlay repo's OWN CI (never rendered; lives at the repo root, so bare
+# `${{ }}` and matrix are fine). The python overlay is NOT a complete repo on its own (LICENSE
+# and the OSS furniture come from the base), so the gate COMPOSES: render template-governance-base
+# first, then render this overlay on top, then assert the composed output is clean and green.
+#
+# PREREQUISITE (PUSH-BASE): this job clones the base from GitHub, so it can only go green once
+# template-governance-base is pushed. Until then, verify locally by rendering the base from its
+# local path. This is the deliberate base->overlay ordering coupling (build-time finding).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  BASE_REF: gh:iitapanderson/template-governance-base
+
+jobs:
+  render-gate:
+    name: render-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+
+      - name: Render composed (base -> python overlay)
+        run: |
+          rm -rf /tmp/py-render
+          uvx copier copy --defaults --trust --vcs-ref HEAD "${BASE_REF}" /tmp/py-render
+          uvx copier copy --defaults --trust --vcs-ref HEAD . /tmp/py-render
+
+      - name: Assert both answers files present (independent overlay linkage)
+        run: |
+          test -f /tmp/py-render/.copier-answers.base.yml
+          test -f /tmp/py-render/.copier-answers.python.yml
+
+      - name: Assert no surviving .jinja files
+        run: |
+          stragglers="$(find /tmp/py-render -name '*.jinja')"
+          if [ -n "$stragglers" ]; then echo "Surviving .jinja:"; echo "$stragglers"; exit 1; fi
+
+      - name: Assert no unrendered Jinja delimiters
+        run: |
+          # -P (PCRE) so the (?<!\$) negative-lookbehind fires — it excludes legitimately-static
+          # GitHub Actions ${{ }} while still catching real unrendered {{ }} / {% %} / {# #}.
+          if grep -rP '(?<!\$)\{\{|\{%|\{#' /tmp/py-render; then
+            echo "Unrendered Jinja delimiters found"; exit 1
+          fi
+
+      - name: Assert furniture + python tooling present
+        run: |
+          cd /tmp/py-render
+          for f in README.md LICENSE NOTICE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md \
+                   SECURITY.md AGENTS.md CLAUDE.md .gitignore .editorconfig \
+                   pyproject.toml .python-version .pre-commit-config.yaml; do
+            test -f "$f" || { echo "missing: $f"; exit 1; }
+          done
+
+      - name: Assert no services scaffolded (python-stack is MCP-free)
+        run: test ! -d /tmp/py-render/services
+
+      - name: Resolve the workspace lock (uv.lock is templating-excluded)
+        run: |
+          cd /tmp/py-render
+          uv lock
+          uv sync --all-packages
+
+      - name: Rendered repo gate is green (ruff + pyright + pytest + governance hooks)
+        run: |
+          cd /tmp/py-render
+          git init -q
+          git add -A
+          uvx pre-commit run --all-files
+
+      - name: Idempotent re-render yields no diff
+        run: |
+          cd /tmp/py-render
+          git add -A
+          uvx copier recopy --defaults --trust -a .copier-answers.python.yml
+          git add -A
+          git diff --cached --quiet || { echo "recopy produced a diff:"; git diff --cached; exit 1; }
