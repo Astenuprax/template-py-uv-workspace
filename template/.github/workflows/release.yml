@@ -1,0 +1,38 @@
+# Builds the workspace distributions on a version tag and attaches keyless build-provenance
+# attestations (Sigstore via OIDC — no secret to manage). Attestation PUBLISHING requires a
+# public repository (or a GitHub plan that enables it); while this repo is private the build
+# runs and the attestation step is inert. All actions are SHA-pinned (supply-chain mandate).
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build + attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # keyless Sigstore signing
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # hatch-vcs derives the version from tags
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Build all workspace distributions
+        run: uv build --all-packages
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: "dist/*"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/*

@@ -1,0 +1,82 @@
+# AGENTS.md
+
+Canonical onboarding guide for `{{ project_name }}`. This file is the source of truth; `CLAUDE.md`
+is a thin pointer to it, and `AGENTS.local.md` holds project-specific notes. Read this before
+making changes.
+
+This repository was scaffolded from `template-governance-base` — the stack-agnostic governance
+kernel — with the **python uv-workspace** stack overlay composed on top. The base contributes the
+universal governance gate; this overlay adds the uv workspace, the example agent member, the
+structure-lint, and the ruff / pyright / pytest toolchain (documented under "Python uv-workspace
+stack" below).
+
+## The quality gate
+
+The credential-free gate is the repository's `pre-commit` hooks:
+
+```bash
+uvx pre-commit run --all-files
+```
+
+The base layer contributes:
+
+- **Universal hygiene** — trailing-whitespace, end-of-file, YAML/TOML validity, merge-conflict
+  markers, large-file guard, and secret scanning (gitleaks).
+- **Governance enforcement** (language-agnostic) — Actions are SHA-pinned, `LICENSE` is verbatim
+  Apache-2.0, root Markdown is allow-listed, and every `docs/` knowledge artefact carries
+  enum-valid frontmatter.
+
+The python stack overlay adds **ruff** (lint), **ruff-format**, **pyright (strict)**, and the
+**structure-lint** (`tests/test_structure.py`) + **pytest** unit suite. Run the same gate locally
+that CI runs; CI is the backstop the local hook cannot be `--no-verify`'d past.
+
+## Governance standards
+
+This repository is built to externally maintained standards, referenced **by name only** (read the
+canonical documents; do not expect their bodies inline):
+
+- **repo-structure-standard** — the canonical directory layout for the stack.
+- **repo-hygiene** — the mechanical enforcement layer (frontmatter, file placement, clean-repo
+  rules) that the gates and pre-commit hooks operationalise.
+- **governance-standards** — code-quality standards (typing, error handling, output contracts,
+  idempotency).
+
+When a convention seems arbitrary, its rationale lives in one of those three documents.
+
+## Conventions (universal)
+
+- **SHA-pinned GitHub Actions** — every `uses:` in `.github/workflows/` is pinned to a full commit
+  SHA, not a moving tag (supply-chain integrity over convenience; see `docs/adr/`).
+- **`docs/` frontmatter** — every Markdown file under `docs/` carries enum-valid YAML frontmatter
+  (a recognised `type`/`status` set, per repo-hygiene). Files missing or carrying invalid
+  frontmatter fail the gate.
+- **Root Markdown allowlist** — only the OSS-furniture Markdown set lives at the repo root;
+  everything else belongs under `docs/`.
+
+## Python uv-workspace stack
+
+- **Virtual workspace.** The root `pyproject.toml` declares `[tool.uv.workspace]` with
+  `members = ["packages/*", "services/*"]`; it is NOT a distributable. Members share ONE `uv.lock`
+  and ONE `.venv` (materialised by `uv sync --all-packages`). Cross-member deps go through
+  `[tool.uv.sources] { workspace = true }`. The trade-off (import/build isolation, NOT
+  dependency-resolution isolation) is recorded in `docs/adr/0001-uv-workspace.md`.
+- **Members are typed src-layout distributions.** Each `packages/<lib>` / `services/<svc>` is its
+  own installable project: `src/<import_name>/` with a `py.typed` marker and a `[project.scripts]`
+  entrypoint. The example is `packages/platform-core` — a pydantic-ai governance-audit agent whose
+  tool runs **in-process** (MCP-free); the `template-mcp-capability` overlay re-wires it over MCP.
+- **`uv lock` is a manual / CI step**, never a copier `_tasks` hook — the template stays
+  `--trust`-free. After rendering, run `uv lock` (or `just lock`) once to materialise `uv.lock`.
+- **Tests** live at the workspace root in `tests/` (`unit/` offline + `tests/test_structure.py`);
+  integration tests carry `@pytest.mark.integration` and are excluded from the gate.
+
+## Governance updates
+
+This repo is linked to `template-governance-base` via `.copier-answers.base.yml`, and to the python
+overlay via `.copier-answers.python.yml`. Pull later governance changes with
+`uvx copier update -a .copier-answers.base.yml` (3-way merge; your `AGENTS.local.md`, `README.md`,
+and other user-owned files are preserved).
+
+---
+
+Author: {{ author_name }} | {{ author_org }}
+License: Apache-2.0 (see `LICENSE`; attribution in `NOTICE`).

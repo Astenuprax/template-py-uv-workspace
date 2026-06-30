@@ -1,0 +1,38 @@
+# Dependabot — base github-actions ecosystem (carried forward) + the python uv ecosystem.
+# Conforms to repo-structure-standard, repo-hygiene, and governance-standards.
+version: 2
+updates:
+  # GitHub Actions workflows under .github/workflows/ (base layer).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python dependencies for the uv workspace (uv sync --all-packages).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"

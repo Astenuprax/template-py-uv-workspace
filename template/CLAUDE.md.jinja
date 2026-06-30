@@ -1,0 +1,18 @@
+# CLAUDE.md
+
+Read **AGENTS.md** first — it is the canonical agent guide for this repository (governance
+contract and operating rules, including the python uv-workspace stack section). For project-specific
+notes, see **AGENTS.local.md** (yours to own; not overwritten by governance updates). This file
+holds only repo-specific pointers and does not duplicate them.
+
+## Quick pointers
+
+- **Quality gate:** run `uvx pre-commit run --all-files` before every commit (ruff + ruff-format +
+  pyright strict + pytest, including the `tests/test_structure.py` structure-lint).
+- **Lockfile:** `uv.lock` is committed but templating-excluded — run `uv lock` (or `just lock`)
+  once after rendering to materialise it.
+- **Governance standards (apply by name):** `repo-structure-standard` (directory layout),
+  `repo-hygiene` (mechanical cleanliness and frontmatter), and `governance-standards` (coding and
+  authoring rules).
+
+Maintainer: {{ author_name }} | {{ author_org }}.

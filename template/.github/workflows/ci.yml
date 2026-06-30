@@ -1,0 +1,79 @@
+# Mirrors the local pre-commit gate (the hook is bypassable with --no-verify; CI is not).
+# All actions are pinned to a full commit SHA (supply-chain mandate; enforced by
+# tests/test_structure.py::test_all_workflow_actions_are_sha_pinned).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (py${{ matrix.python }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - name: Verify lockfile is current
+        run: uv lock --check
+      - name: Sync workspace
+        run: uv sync --all-packages --frozen
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+      - name: Type check (pyright strict)
+        run: uv run pyright
+      - name: Test (excluding integration)
+        run: uv run pytest -m "not integration"
+
+  sbom:
+    name: sbom (cyclonedx)
+    runs-on: ubuntu-latest
+    needs: check
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Sync workspace
+        run: uv sync --all-packages
+      - name: Generate CycloneDX SBOM
+        run: >
+          uv run --with cyclonedx-bom
+          cyclonedx-py environment --output-format JSON --outfile sbom.cdx.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+
+  # Dependency CVE gate. Scans the committed uv.lock directly (the exact resolved set,
+  # install-independent) with OSV-Scanner — the OpenSSF-ecosystem scanner, coherent with this
+  # repo's Scorecard + SLSA + SBOM supply-chain posture, and native to uv.lock. The reusable
+  # workflow uploads SARIF to the Security tab; that upload activates once the repo is public
+  # (free code-scanning) — the same active-when-public model as scorecard.yml. Pinned to a SHA.
+  osv-scan:
+    name: osv-scan (uv.lock)
+    needs: check
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+    with:
+      scan-args: |-
+        --lockfile=uv.lock

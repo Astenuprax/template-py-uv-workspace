@@ -1,0 +1,32 @@
+[project]
+name = "platform-core"
+dynamic = ["version"]
+description = "Shared runtime: the pydantic-ai governance-audit agent, its tool(s), settings, and tracing."
+readme = "README.md"
+authors = [{ name = "Phillip Anderson", email = "panderson@integrate-it.com.au" }]
+license = "Apache-2.0"
+requires-python = ">=3.12"
+# No-MCP closure (python-stack overlay): the [anthropic] extra only — NOT [anthropic,mcp]. The
+# [mcp] extra is what pulls fastmcp; dropping it (not merely the agent.py imports) keeps the
+# resolved dependency set genuinely MCP-free. The mcp-capability overlay re-adds [mcp] + fastmcp.
+dependencies = [
+    "pydantic-ai-slim[anthropic]>=1.0",
+    "pydantic-settings>=2.5",
+]
+
+[project.scripts]
+governance-agent = "platform_core.agent:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+# root: hatch-vcs reads git tags from the workspace root. fallback_version: builds without
+# a .git (container build context, sdist/tarball) get a deterministic version instead of
+# hard-failing; host/CI builds with git history still derive the real tag-based version.
+raw-options = { root = "../..", fallback_version = "0.0.0" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/platform_core"]

@@ -1,0 +1,23 @@
+# Workspace task recipes (run with `just <recipe>`; https://github.com/casey/just).
+# Convenience only — the authoritative gate is `.pre-commit-config.yaml` / CI.
+
+# Resolve the workspace lockfile (uv.lock is templating-excluded; regenerate it post-render).
+lock:
+    uv lock
+
+# Materialise the shared venv across every workspace member.
+sync:
+    uv sync --all-packages
+
+# The full local quality gate (ruff + ruff-format + pyright strict + pytest + structure-lint).
+check:
+    uvx pre-commit run --all-files
+
+# Unit + structure tests only (excludes the integration-marked, credential-needing tests).
+test:
+    uv run pytest -m "not integration"
+
+# Auto-fix lint + format in place.
+fmt:
+    uv run ruff check --fix .
+    uv run ruff format .

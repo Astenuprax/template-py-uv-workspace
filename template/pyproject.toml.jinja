@@ -1,0 +1,86 @@
+# Workspace root (virtual — not itself a distributable package).
+# Members are built/installed individually; the workspace shares ONE uv.lock + ONE venv.
+# Isolation semantics: import-namespace + separately-buildable distributions — NOT per-service
+# dependency isolation (a deliberate dev-convenience; see docs/adr/0001-uv-workspace.md).
+#
+# This file is 100% python-overlay-owned: template-governance-base ships NO pyproject.toml, so
+# the overlay owns the whole workspace manifest + tool config + the [tool.structure_lint] data.
+[project]
+name = "{{ project_name }}"
+version = "0"
+description = "{{ project_description }}"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.uv.workspace]
+members = ["packages/*", "services/*"]
+
+[tool.uv.sources]
+platform-core = { workspace = true }
+
+# Dev tooling pinned in the lock (reproducible) and run via `uv run` so it sees the workspace venv.
+# pyright in particular MUST run inside the venv to resolve first/third-party imports.
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+    "pyright>=1.1.380",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["packages/platform-core/src"]
+# tools/ is owned by template-governance-base (its governance_checks.py runs as a pre-commit hook
+# and is governed by the base's own gate, which has no ruff). The overlay's structure-lint allows
+# .py there (py_source_roots), but the overlay does NOT re-lint base-owned code — excluding it
+# avoids the overlay's bandit (S) rules flagging the base's deliberate subprocess git call.
+extend-exclude = ["tools"]
+
+[tool.ruff.lint]
+# E/F/I/B/UP/SIM: style, pyflakes, import-sort, bugbear, pyupgrade, simplify.
+# ASYNC: async-correctness (the codebase runs asyncio_mode="auto").
+# S: bandit security rules (an agent processes untrusted tool input).
+# RUF: ruff's own lints (e.g. unused noqa, mutable-default surface).
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use bare `assert` (S101) — that's how pytest asserts.
+"tests/**" = ["S101"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+# tools/ is base-owned (see [tool.ruff].extend-exclude); not type-checked by the overlay.
+include = ["packages", "tests"]
+venvPath = "."
+venv = ".venv"
+
+# Authoritative declaration of the structure-standard version this repo conforms to.
+# tests/test_structure.py asserts its CONFORMS_TO_STRUCTURE_VERSION matches this value,
+# so bumping the rules without bumping this (or vice-versa) fails the gate. A machine-
+# readable home that the config-audit meta-check can import without loading pytest.
+#
+# The three lists below are the stack-specific structure-lint data, hoisted here; the harness
+# (test_structure.py) reads them and enforces a two-tier shrink-floor (its hardcoded *_FLOOR
+# sets) so they cannot be weakened below the base-furniture + python-uv minimums.
+# `tools` joins py_source_roots because template-governance-base ships tools/governance_checks.py
+# (its universal-governance hook); without it the structure-lint flags that base file as a stray.
+[tool.structure_lint]
+version = 1
+root_required = [
+  "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
+  "pyproject.toml", "uv.lock", ".pre-commit-config.yaml", ".python-version",
+]
+py_source_roots = ["packages", "services", "tests", "tools"]
+member_roots = ["packages", "services"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+markers = [
+    "integration: live agent<->model run; needs ANTHROPIC_API_KEY; excluded from the CI gate",
+]
