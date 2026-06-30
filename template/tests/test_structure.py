@@ -469,12 +469,27 @@ def test_ci_workflow_present() -> None:
 
 
 def test_all_workflow_actions_are_sha_pinned() -> None:
-    """Every `uses:` external Action must be pinned to a 40-hex commit SHA (supply chain)."""
-    wf_dir = REPO_ROOT / ".github" / "workflows"
-    if not wf_dir.is_dir():
-        pytest.skip("no workflows yet")
+    """Every `uses:` external Action must be pinned to a 40-hex commit SHA (supply chain).
+
+    Scans BOTH `.github/workflows/*.yml` and `.github/actions/**/action.{yml,yaml}` (local
+    composite actions). A composite action reached via a `./`-local `uses:` is skipped at the
+    workflow level, so an unpinned EXTERNAL action *inside* a composite would be invisible unless
+    the composite files are scanned too — matching the base governance hook's coverage shape so
+    the structure-lint stays self-sufficient even where that hook is not run.
+    """
+    gh = REPO_ROOT / ".github"
+    files: list[Path] = []
+    wf_dir = gh / "workflows"
+    if wf_dir.is_dir():
+        files += sorted(wf_dir.glob("*.yml")) + sorted(wf_dir.glob("*.yaml"))
+    actions_dir = gh / "actions"
+    if actions_dir.is_dir():
+        files += sorted(actions_dir.rglob("action.yml")) + sorted(actions_dir.rglob("action.yaml"))
+    if not files:
+        pytest.skip("no workflows or composite actions yet")
     unpinned: list[str] = []
-    for wf in sorted(wf_dir.glob("*.yml")) + sorted(wf_dir.glob("*.yaml")):
+    for wf in files:
+        rel = wf.relative_to(REPO_ROOT).as_posix()
         for line in wf.read_text(encoding="utf-8").splitlines():
             for m in _USES_REF.finditer(line):
                 ref = m.group("ref").strip("\"'")
@@ -483,8 +498,8 @@ def test_all_workflow_actions_are_sha_pinned() -> None:
                 if ref.startswith("docker://"):
                     # container actions ARE pinnable — by image digest, not a floating tag.
                     if not _DIGEST_PIN.search(ref):
-                        unpinned.append(f"{wf.name}: {ref} (docker:// needs @sha256:<digest>)")
+                        unpinned.append(f"{rel}: {ref} (docker:// needs @sha256:<digest>)")
                     continue
                 if not _SHA_PIN.search(ref):
-                    unpinned.append(f"{wf.name}: {ref}")
+                    unpinned.append(f"{rel}: {ref}")
     assert not unpinned, "Actions not SHA-pinned:\n  " + "\n  ".join(unpinned)

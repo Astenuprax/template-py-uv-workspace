@@ -1,6 +1,9 @@
-# Mirrors the local pre-commit gate (the hook is bypassable with --no-verify; CI is not).
+# CI backstop for the local pre-commit gate (the hook is bypassable with --no-verify; CI is not).
+# The `gate` job runs the FULL pre-commit gate (gitleaks secret-scan + universal governance hook
+# + ruff + pyright + pytest + structure-lint) so nothing the local hook enforces can be bypassed
+# in CI; the `check` matrix adds cross-platform (ubuntu/windows x py3.12/3.13) test coverage on top.
 # All actions are pinned to a full commit SHA (supply-chain mandate; enforced by
-# tests/test_structure.py::test_all_workflow_actions_are_sha_pinned).
+# tests/test_structure.py::test_all_workflow_actions_are_sha_pinned + the governance-checks hook).
 name: ci
 
 on:
@@ -38,6 +41,24 @@ jobs:
         run: uv run pyright
       - name: Test (excluding integration)
         run: uv run pytest -m "not integration"
+
+  # Non-bypassable backstop: runs the SAME gate as the local pre-commit hook, so a secret
+  # committed with `git commit --no-verify` (or by a clone without the hook installed) is still
+  # caught in CI. This is the layer the base ci.yml provided via `pre-commit run --all-files`;
+  # the python overlay must preserve it, since the matrix `check` job (ruff/pyright/pytest) does
+  # NOT run gitleaks or the universal governance hook (composite-action SHA-pin, etc.).
+  gate:
+    name: gate (full pre-commit backstop)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.12"
+      - name: Sync workspace (the local pyright/structure-lint hooks run via `uv run`)
+        run: uv sync --all-packages
+      - name: Full gate (gitleaks + governance + ruff + pyright + pytest + structure-lint)
+        run: uvx pre-commit run --all-files
 
   sbom:
     name: sbom (cyclonedx)

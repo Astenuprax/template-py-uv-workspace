@@ -1,9 +1,13 @@
 # Copier template — template-py-uv-workspace (the Python uv-workspace stack overlay).
 # Composes ON TOP OF a template-governance-base render (apply order: base -> python-stack ->
 # mcp-capability). It overwrites the base-shipped files it also ships (.gitignore,
-# .pre-commit-config.yaml, dependabot.yml, AGENTS.md, CLAUDE.md, devcontainer.json) — each
-# carries the base content forward, never replaces it — and adds the uv workspace, the example
-# `platform-core` member, the structure-lint, and the ruff/pyright/pytest toolchain.
+# .pre-commit-config.yaml, .github/dependabot.yml, AGENTS.md, CLAUDE.md, .github/workflows/ci.yml)
+# — each carries the base content forward, never replaces it — and adds the uv workspace, the
+# example `platform-core` member, the structure-lint, and the ruff/pyright/pytest toolchain.
+# NOTE: the workflow files (.github/workflows/ci.yml + release.yml) are intentionally NON-.jinja
+# (verbatim copies) so GitHub `${{ }}` expressions survive un-mangled — copier renders only
+# `.jinja`-suffixed files. Do NOT suffix them or set a `_templates_suffix` override that would
+# template them, or the bare `${{ }}` will hard-fail the render.
 # Author: Phillip Anderson | Integrate-IT Australia.
 
 _subdirectory: template
