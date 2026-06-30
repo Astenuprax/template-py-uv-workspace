@@ -23,7 +23,7 @@ import pytest
 
 # Bump in lockstep with [tool.structure_lint].version in the root pyproject.toml when the
 # archetype rules below change (dec.16). The two are cross-asserted, so a forgotten bump fails.
-CONFORMS_TO_STRUCTURE_VERSION = 1
+CONFORMS_TO_STRUCTURE_VERSION = 2
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -377,14 +377,15 @@ def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
         if len(parts) == 1:
             if rel.name not in ROOT_MD_ALLOWLIST:
                 offenders.append(str(rel))
-        elif parts[0] in {"docs", ".github"} or (
+        elif parts[0] in {"docs", ".github", ".claude"} or (
             rel.name == "README.md" and rel.parent in member_roots
         ):
             continue
         else:
             offenders.append(str(rel))
     assert not offenders, (
-        "markdown outside root-allowlist / docs / .github / member README.md: " + repr(offenders)
+        "markdown outside root-allowlist / docs / .github / .claude / member README.md: "
+        + repr(offenders)
     )
 
 
