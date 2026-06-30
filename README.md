@@ -17,13 +17,15 @@ pre-commit gate). This overlay adds, on top:
 ## Use
 
 ```bash
-# 1. Render the governance base, then this overlay on top (apply order matters):
-uvx copier copy gh:iitapanderson/template-governance-base ./my-repo
-uvx copier copy gh:iitapanderson/template-py-uv-workspace  ./my-repo
+# 1. Render the governance base, then this overlay on top (apply order matters).
+#    --overwrite lets the overlay replace the base's seed files; without it copier
+#    conflict-prompts and the default (keep-existing) leaves a half-composed repo:
+uvx copier copy --overwrite gh:iitapanderson/template-governance-base ./my-repo
+uvx copier copy --overwrite gh:iitapanderson/template-py-uv-workspace  ./my-repo
 # 2. Resolve the workspace lock (uv.lock is intentionally not templated):
 cd my-repo && uv lock && uv sync --all-packages
-# 3. Activate the gate:
-uvx pre-commit install
+# 3. Initialise git (copier does not), then activate the gate:
+git init && uvx pre-commit install
 ```
 
 Pull later stack changes independently of the base with
