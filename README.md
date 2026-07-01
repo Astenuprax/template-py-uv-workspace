@@ -1,7 +1,7 @@
 # template-py-uv-workspace
 
 The **Python uv-workspace stack overlay** of the `template-*` family — a [Copier](https://copier.readthedocs.io)
-template that composes **on top of** [`template-governance-base`](https://github.com/iitapanderson/template-governance-base)
+template that composes **on top of** [`template-governance-base`](https://github.com/Astenuprax/template-governance-base)
 to materialise the *AI-monorepo (Python, uv workspace)* archetype from `repo-structure-standard`.
 
 The base contributes the stack-agnostic governance kernel (furniture, licence, the universal
@@ -20,8 +20,8 @@ pre-commit gate). This overlay adds, on top:
 # 1. Render the governance base, then this overlay on top (apply order matters).
 #    --overwrite lets the overlay replace the base's seed files; without it copier
 #    conflict-prompts and the default (keep-existing) leaves a half-composed repo:
-uvx copier copy --overwrite gh:iitapanderson/template-governance-base ./my-repo
-uvx copier copy --overwrite gh:iitapanderson/template-py-uv-workspace  ./my-repo
+uvx copier copy --overwrite gh:Astenuprax/template-governance-base ./my-repo
+uvx copier copy --overwrite gh:Astenuprax/template-py-uv-workspace  ./my-repo
 # 2. Resolve the workspace lock (uv.lock is intentionally not templated):
 cd my-repo && uv lock && uv sync --all-packages
 # 3. Initialise git (copier does not), then activate the gate:

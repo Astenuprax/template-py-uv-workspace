@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 env:
-  BASE_REF: gh:iitapanderson/template-governance-base
+  BASE_REF: gh:Astenuprax/template-governance-base
 
 jobs:
   render-gate:
