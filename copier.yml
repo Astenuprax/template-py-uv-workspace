@@ -86,3 +86,11 @@ claude_md_canonical:
     the thin pointer. True: inverts direction — AGENTS.md renders as the thin pointer and
     CLAUDE.md is canonical (for CLAUDE.md-canonical consumers, e.g. repos whose committed
     session handoffs and read order are authored against CLAUDE.md).
+
+private_repo:
+  type: bool
+  default: false
+  help: >-
+    Is this repository private (never open-sourced)? If true, skip rendering the OSS-facing
+    LICENSE, NOTICE, CODE_OF_CONDUCT.md, CONTRIBUTING.md, and SECURITY.md furniture, and the
+    governance gate's LICENSE-verbatim-Apache-2.0 check is skipped at pre-commit time.

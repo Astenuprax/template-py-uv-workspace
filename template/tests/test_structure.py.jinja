@@ -68,12 +68,16 @@ ROOT_REQUIRED: tuple[str, ...] = _required_list("root_required")
 _ROOT_REQUIRED_FLOOR: frozenset[str] = frozenset(
     {
         "README.md",
+{%- if not private_repo %}
         "LICENSE",
         "NOTICE",
+{%- endif %}
         "CHANGELOG.md",
+{%- if not private_repo %}
         "CODE_OF_CONDUCT.md",
         "CONTRIBUTING.md",
         "SECURITY.md",
+{%- endif %}
         "AGENTS.md",
         "CLAUDE.md",
         ".gitignore",
@@ -293,7 +297,7 @@ def test_python_stack_floor_not_weakened() -> None:
 def test_required_root_file_present(name: str) -> None:
     assert _tracked_and_present(name), f"required root entry missing (drift): {name}"
 
-
+{% if not private_repo %}
 def test_license_is_unmodified_apache() -> None:
     """LICENSE is verbatim Apache-2.0 boilerplate — attribution belongs in NOTICE, not here."""
     text = (REPO_ROOT / "LICENSE").read_text(encoding="utf-8")
@@ -301,7 +305,7 @@ def test_license_is_unmodified_apache() -> None:
     assert "Phillip Anderson" not in text and "Integrate-IT" not in text, (
         "no copyright/identity line may be edited into the verbatim LICENSE body"
     )
-
+{% endif %}
 
 # --- File placement ------------------------------------------------------------------
 
