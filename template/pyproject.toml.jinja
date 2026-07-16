@@ -71,8 +71,8 @@ venv = ".venv"
 [tool.structure_lint]
 version = 2
 root_required = [
-  "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CODE_OF_CONDUCT.md",
-  "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
+  "README.md",{% if not private_repo %} "LICENSE", "NOTICE",{% endif %} "CHANGELOG.md",{% if not private_repo %} "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md", "SECURITY.md",{% endif %} "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
   "pyproject.toml", "uv.lock", ".pre-commit-config.yaml", ".python-version",
 ]
 py_source_roots = ["packages", "services", "tests", "tools"]
@@ -150,8 +150,8 @@ venv = ".venv"
 [tool.structure_lint]
 version = 2
 root_required = [
-  "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CODE_OF_CONDUCT.md",
-  "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
+  "README.md",{% if not private_repo %} "LICENSE", "NOTICE",{% endif %} "CHANGELOG.md",{% if not private_repo %} "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md", "SECURITY.md",{% endif %} "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
   "pyproject.toml", "uv.lock", ".pre-commit-config.yaml", ".python-version",
 ]
 py_source_roots = ["{{ python_package_name }}", "tests", "tools"]
