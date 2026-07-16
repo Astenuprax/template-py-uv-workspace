@@ -17,18 +17,24 @@ _min_copier_version: "9.16.0"
 # Write-once user-data seeds: created on first render, never clobbered by a later `copier update`.
 # The example member's CODE is a seed the user evolves; required scaffold markers (py.typed) and
 # the re-rendered tooling files are NOT here so governance corrections still reach every instance.
+# CLAUDE.md/AGENTS.md are also base-shipped (template-governance-base ships both); this overlay
+# re-renders both (AGENTS.md canonical, CLAUDE.md thin pointer, or inverted per claude_md_canonical)
+# on first render only — a later `copier update` must not clobber a consumer's own edits to either.
 _skip_if_exists:
+  - CLAUDE.md
+  - AGENTS.md
   - docs/ARCHITECTURE.md
-  - packages/platform-core/README.md
-  - packages/platform-core/pyproject.toml
-  - packages/platform-core/src/platform_core/__init__.py
-  - packages/platform-core/src/platform_core/agent.py
-  - packages/platform-core/src/platform_core/settings.py
-  - packages/platform-core/src/platform_core/tools.py
-  - packages/platform-core/src/platform_core/tracing.py
-  - tests/unit/test_agent_build.py
-  - tests/unit/test_eval_audit.py
-  - tests/unit/test_tools.py
+  - "{% if project_kind == 'workspace' %}packages/platform-core/README.md{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/pyproject.toml{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/src/platform_core/__init__.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/src/platform_core/agent.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/src/platform_core/settings.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/src/platform_core/tools.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}packages/platform-core/src/platform_core/tracing.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}tests/unit/test_agent_build.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}tests/unit/test_eval_audit.py{% endif %}"
+  - "{% if project_kind == 'workspace' %}tests/unit/test_tools.py{% endif %}"
+  - "{% if project_kind == 'stdlib-tools' %}{{ python_package_name }}/__init__.py{% endif %}"
 
 # --- Questions (mirror template-governance-base so a composed render shares one identity) -------
 project_name:
@@ -40,6 +46,24 @@ project_description:
   type: str
   default: ""
   help: "One-line description of the repository."
+
+project_kind:
+  type: str
+  default: workspace
+  choices:
+    - workspace
+    - stdlib-tools
+  help: >-
+    "workspace" (default, non-breaking for existing consumers): a uv workspace of
+    hatchling-built, installable packages/services members. "stdlib-tools": a flat root
+    package of stdlib-only tools run via `python -m <pkg>.<tool>` from a bare clone — no
+    packages/ members, no hatchling, no [build-system], no editable install.
+
+python_package_name:
+  type: str
+  default: "{{ project_name | replace('-', '_') | replace(' ', '_') }}"
+  when: false
+  help: "Computed, not asked: the stdlib-tools root package's import name."
 
 author_name:
   type: str
@@ -53,3 +77,12 @@ github_owner:
   type: str
   default: "Astenuprax"
   help: "GitHub owner/org that will host the rendered repository."
+
+claude_md_canonical:
+  type: bool
+  default: false
+  help: >-
+    False (default, byte-identical to prior renders): AGENTS.md is canonical, CLAUDE.md is
+    the thin pointer. True: inverts direction — AGENTS.md renders as the thin pointer and
+    CLAUDE.md is canonical (for CLAUDE.md-canonical consumers, e.g. repos whose committed
+    session handoffs and read order are authored against CLAUDE.md).

@@ -1,3 +1,4 @@
+{% if project_kind == 'workspace' -%}
 # Workspace root (virtual — not itself a distributable package).
 # Members are built/installed individually; the workspace shares ONE uv.lock + ONE venv.
 # Isolation semantics: import-namespace + separately-buildable distributions — NOT per-service
@@ -84,3 +85,78 @@ addopts = "-ra"
 markers = [
     "integration: live agent<->model run; needs ANTHROPIC_API_KEY; excluded from the CI gate",
 ]
+{% else -%}
+# Root package manifest (stdlib-tools variant — NOT a uv workspace, NOT a build target).
+# `{{ python_package_name }}/` is a flat root package: tools run in place via
+# `python -m {{ python_package_name }}.<tool>` from a bare clone (cwd = repo root). There is no
+# `[build-system]` and no editable install — this file exists to pin the dev toolchain and to
+# hoist the [tool.structure_lint] data, exactly as the workspace variant does.
+[project]
+name = "{{ project_name }}"
+version = "0"
+description = "{{ project_description }}"
+requires-python = ">=3.12"
+readme = "README.md"
+# Stdlib-only contract: this repo ships no runtime third-party dependency. Every import in
+# `{{ python_package_name }}/` must resolve to the standard library (enforced by
+# tests/test_structure.py's stdlib-only-import guard). Dev/test tooling lives in
+# [dependency-groups].dev below, never here.
+dependencies = []
+
+# Dev tooling pinned in the lock (reproducible) and run via `uv run` so it sees the project venv.
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.7",
+    "pyright>=1.1.380",
+    "jsonschema>=4.23",
+    "scipy>=1.14",
+    "mpmath>=1.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["{{ python_package_name }}"]
+# tools/ is owned by template-governance-base (its governance_checks.py runs as a pre-commit hook
+# and is governed by the base's own gate, which has no ruff). The overlay's structure-lint allows
+# .py there (py_source_roots), but the overlay does NOT re-lint base-owned code — excluding it
+# avoids the overlay's bandit (S) rules flagging the base's deliberate subprocess git call.
+extend-exclude = ["tools"]
+
+[tool.ruff.lint]
+# E/F/I/B/UP/SIM: style, pyflakes, import-sort, bugbear, pyupgrade, simplify.
+# ASYNC: async-correctness. S: bandit security rules. RUF: ruff's own lints.
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use bare `assert` (S101) — that's how pytest asserts.
+"tests/**" = ["S101"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+# tools/ is base-owned (see [tool.ruff].extend-exclude); not type-checked by the overlay.
+include = ["{{ python_package_name }}", "tests"]
+venvPath = "."
+venv = ".venv"
+
+# Authoritative declaration of the structure-standard version this repo conforms to.
+# tests/test_structure.py asserts its CONFORMS_TO_STRUCTURE_VERSION matches this value,
+# so bumping the rules without bumping this (or vice-versa) fails the gate.
+#
+# stdlib-tools has NO workspace members, so it carries no `member_roots` key — the harness's
+# stdlib-tools branch never reads one (KeyError-fail-closed on a required key it doesn't need).
+[tool.structure_lint]
+version = 2
+root_required = [
+  "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", ".gitignore", ".editorconfig",
+  "pyproject.toml", "uv.lock", ".pre-commit-config.yaml", ".python-version",
+]
+py_source_roots = ["{{ python_package_name }}", "tests", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+{% endif -%}

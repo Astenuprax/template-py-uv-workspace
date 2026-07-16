@@ -1,3 +1,50 @@
+{% if claude_md_canonical -%}
+# CLAUDE.md
+
+Canonical onboarding guide for `{{ project_name }}` (this repo's `claude_md_canonical` flag inverts
+the usual direction — see `AGENTS.md`, which is now the thin pointer). This file is the source of
+truth; `AGENTS.local.md` holds project-specific notes. Read this before making changes.
+
+This repository was scaffolded from `template-governance-base` — the stack-agnostic governance
+kernel — with the **python uv-workspace** stack overlay composed on top. The base contributes the
+universal governance gate; this overlay adds the uv workspace, the example agent member, the
+structure-lint, and the ruff / pyright / pytest toolchain.
+
+## The quality gate
+
+The credential-free gate is the repository's `pre-commit` hooks:
+
+```bash
+uvx pre-commit run --all-files
+```
+
+The base layer contributes universal hygiene + language-agnostic governance enforcement; the
+python stack overlay adds ruff / ruff-format / pyright (strict) / the structure-lint
+(`tests/test_structure.py`) / pytest. Run the same gate locally that CI runs.
+
+## Governance standards
+
+Referenced **by name only** (read the canonical documents; do not expect their bodies inline):
+`repo-structure-standard` (directory layout), `repo-hygiene` (mechanical cleanliness and
+frontmatter), `governance-standards` (coding and authoring rules).
+
+## Lockfile
+
+`uv.lock` is committed but templating-excluded — run `uv lock` (or `just lock`) once after
+rendering to materialise it.
+
+## Governance updates
+
+This repo is linked to `template-governance-base` via `.copier-answers.base.yml`, and to the python
+overlay via `.copier-answers.python.yml`. Pull later governance changes with
+`uvx copier update -a .copier-answers.base.yml` (3-way merge; your `AGENTS.local.md`, `README.md`,
+and other user-owned files are preserved).
+
+---
+
+Author: {{ author_name }} | {{ author_org }}
+License: Apache-2.0 (see `LICENSE`; attribution in `NOTICE`).
+{% else -%}
 # CLAUDE.md
 
 Read **AGENTS.md** first — it is the canonical agent guide for this repository (governance
@@ -16,3 +63,4 @@ holds only repo-specific pointers and does not duplicate them.
   authoring rules).
 
 Maintainer: {{ author_name }} | {{ author_org }}.
+{% endif -%}

@@ -1,3 +1,16 @@
+{% if claude_md_canonical -%}
+# AGENTS.md
+
+Thin pointer for `{{ project_name }}`. **`CLAUDE.md` is the canonical onboarding guide and source of
+truth** (this repo's `claude_md_canonical` flag inverts the usual direction); read it first. This
+file exists only so tools that look for `AGENTS.md` by convention find a pointer instead of
+nothing. `AGENTS.local.md` holds project-specific notes.
+
+---
+
+Author: {{ author_name }} | {{ author_org }}
+License: Apache-2.0 (see `LICENSE`; attribution in `NOTICE`).
+{% else -%}
 # AGENTS.md
 
 Canonical onboarding guide for `{{ project_name }}`. This file is the source of truth; `CLAUDE.md`
@@ -80,3 +93,4 @@ and other user-owned files are preserved).
 
 Author: {{ author_name }} | {{ author_org }}
 License: Apache-2.0 (see `LICENSE`; attribution in `NOTICE`).
+{% endif -%}

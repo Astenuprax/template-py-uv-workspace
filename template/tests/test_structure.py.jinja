@@ -1,8 +1,8 @@
-"""Structure-lint gate (G1) — the AI-monorepo archetype, encoded as executable tests.
+"""Structure-lint gate (G1) — the {{ 'AI-monorepo' if project_kind == 'workspace' else 'stdlib-tools' }} archetype, encoded as executable tests.
 
-This file is the *executable form of the structure standard* for a uv-workspace AI/agentic
-monorepo. Each test FAILS on a real drift class (a stray ``.py``/``.md``, a member missing
-``py.typed``, an unpinned Action, off-vocabulary doc frontmatter) rather than merely checking
+This file is the *executable form of the structure standard* for a {{ 'uv-workspace AI/agentic monorepo' if project_kind == 'workspace' else 'flat stdlib-only tools repo' }}.
+Each test FAILS on a real drift class (a stray ``.py``/``.md``, {{ 'a member missing ``py.typed``, ' if project_kind == 'workspace' else '' }}
+off-vocabulary doc frontmatter{{ ', an unpinned Action' if project_kind == 'workspace' else '' }}) rather than merely checking
 presence — per the repo-hygiene Form-vs-Substance principle, a gate that asserts existence is
 gameable. (A full file-TYPE placement allowlist beyond ``.py``/``.md`` is Phase-2 scope.)
 
@@ -12,7 +12,10 @@ it satisfies; ``test_version_marker_matches_declaration`` ties it to the authori
 """
 
 from __future__ import annotations
-
+{% if project_kind == 'stdlib-tools' %}
+import ast
+import sys
+{% endif %}
 import re
 import subprocess
 import tomllib
@@ -26,11 +29,13 @@ import pytest
 CONFORMS_TO_STRUCTURE_VERSION = 2
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
+{% if project_kind == 'stdlib-tools' %}
+PACKAGE_NAME = "{{ python_package_name }}"
+{% endif %}
 
 def _structure_lint_cfg() -> dict[str, object]:
     """The root pyproject's ``[tool.structure_lint]`` table — the hoisted structure-lint DATA
-    (``root_required`` / ``py_source_roots`` / ``member_roots``). Only these stack-specific lists
+    (``root_required`` / ``py_source_roots``{{ ' / ``member_roots``' if project_kind == 'workspace' }}). Only these stack-specific lists
     are config-sourced; all *behaviour* (the pin regexes, the frontmatter enums, the version
     marker, and the ``*_FLOOR`` shrink-guards below) stays hardcoded in this module (spike §4.2)."""
     data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -78,12 +83,19 @@ _ROOT_REQUIRED_FLOOR: frozenset[str] = frozenset(
 _PY_ROOT_REQUIRED_FLOOR: frozenset[str] = frozenset(
     {"pyproject.toml", "uv.lock", ".pre-commit-config.yaml", ".python-version"}
 )
+{% if project_kind == 'workspace' -%}
 _PY_MEMBER_ROOTS_FLOOR: frozenset[str] = frozenset({"packages", "services"})
-
+{% else -%}
+# stdlib-tools' OWN floor (spike §4.3, mirrored for this archetype): no packages/services roots —
+# there are no workspace members — but the root package + tests must stay declared.
+_PY_SOURCE_ROOTS_FLOOR: frozenset[str] = frozenset({PACKAGE_NAME, "tests"})
+{% endif %}
 # Markdown allowed at the repo ROOT (everything else markdown must live under docs/).
 # AGENTS.local.md is part of the base furniture set (template-governance-base ships it
 # skip_if_exists and its tools/governance_checks.py allows it); it MUST be allow-listed here
 # too or the composed render fails the structure-lint while passing the base governance hook.
+# ROADMAP.md is likewise base furniture (the strategic-arc pointer) — allow-listed at root so a
+# consumer that ships one does not trip this gate (mirrors the base gate's own allowlist fix).
 ROOT_MD_ALLOWLIST: frozenset[str] = frozenset(
     {
         "README.md",
@@ -94,6 +106,7 @@ ROOT_MD_ALLOWLIST: frozenset[str] = frozenset(
         "AGENTS.md",
         "AGENTS.local.md",
         "CLAUDE.md",
+        "ROADMAP.md",
     }
 )
 
@@ -168,7 +181,7 @@ def _iter_repo_files(suffix: str) -> list[Path]:
         out.append(p)
     return _drop_git_ignored(out)
 
-
+{% if project_kind == 'workspace' %}
 def _member_globs() -> list[str]:
     """The workspace member globs as actually declared in pyproject (not hardcoded)."""
     data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -185,7 +198,7 @@ def _workspace_members() -> list[Path]:
                 seen.setdefault(match.resolve(), None)
     return list(seen)
 
-
+{% endif %}
 def _read_frontmatter(md: Path) -> dict[str, str] | None:
     text = md.read_text(encoding="utf-8")
     if not text.startswith("---"):
@@ -236,7 +249,7 @@ def test_base_floor_not_weakened() -> None:
     missing = _ROOT_REQUIRED_FLOOR - root_required
     assert not missing, f"root_required shrank below the base-furniture floor: {sorted(missing)}"
 
-
+{% if project_kind == 'workspace' %}
 def test_python_stack_floor_not_weakened() -> None:
     """The python-uv stack's own non-shrinkable rows (mirrors the base floor, for the stack).
 
@@ -256,7 +269,22 @@ def test_python_stack_floor_not_weakened() -> None:
         f"member_roots shrank below the python floor: {sorted(missing_members)}"
     )
     assert "tests" in py_source_roots, "py_source_roots must include 'tests'"
-
+{% else %}
+def test_python_stack_floor_not_weakened() -> None:
+    """The stdlib-tools stack's own non-shrinkable rows (its OWN floor — NOT the workspace
+    member-roots floor, which does not apply: this archetype has no packages/services members).
+    """
+    root_required = frozenset(ROOT_REQUIRED)
+    py_source_roots = frozenset(_PY_SOURCE_ROOTS)
+    missing_roots = _PY_ROOT_REQUIRED_FLOOR - root_required
+    missing_sources = _PY_SOURCE_ROOTS_FLOOR - py_source_roots
+    assert not missing_roots, (
+        f"python-uv root files are non-negotiable; missing: {sorted(missing_roots)}"
+    )
+    assert not missing_sources, (
+        f"py_source_roots shrank below the stdlib-tools floor: {sorted(missing_sources)}"
+    )
+{% endif %}
 
 # --- Root furniture ------------------------------------------------------------------
 
@@ -291,7 +319,48 @@ def test_python_sources_only_in_allowed_roots() -> None:
     ]
     assert not offenders, f".py outside {_PY_SOURCE_ROOTS}: {offenders}"
 
+{% if project_kind == 'stdlib-tools' %}
+# --- Stdlib-only import guard ---------------------------------------------------------
 
+
+def _top_level_import_roots(py_file: Path) -> set[str]:
+    """AST-walk one module and return the top-level root of every import it performs
+    (``import a.b.c`` / ``from a.b import c`` -> ``{"a"}``; relative imports skipped)."""
+    tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                roots.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level > 0:
+                continue  # relative import — always in-package, not a third-party dependency
+            if node.module:
+                roots.add(node.module.split(".")[0])
+    return roots
+
+
+def test_package_imports_are_stdlib_only() -> None:
+    """Every import in ``{{ python_package_name }}/`` must resolve to the standard library or to
+    the package itself — the stdlib-only contract ([project].dependencies = []) enforced at the
+    AST level, not merely declared in a comment.
+    """
+    pkg_dir = REPO_ROOT / PACKAGE_NAME
+    if not pkg_dir.is_dir():
+        pytest.skip(f"{PACKAGE_NAME}/ not found")
+    allowed = set(sys.stdlib_module_names) | {PACKAGE_NAME}
+    offenders: list[str] = []
+    for py_file in sorted(pkg_dir.rglob("*.py")):
+        rel = py_file.relative_to(REPO_ROOT)
+        for root in _top_level_import_roots(py_file):
+            if root not in allowed:
+                offenders.append(f"{rel}: imports {root!r} (not stdlib, not {PACKAGE_NAME!r})")
+    assert not offenders, "non-stdlib import in a stdlib-only package:\n  " + "\n  ".join(
+        offenders
+    )
+
+{% endif %}
+{% if project_kind == 'workspace' %}
 # --- Workspace member integrity ------------------------------------------------------
 
 
@@ -350,11 +419,12 @@ def test_every_service_ships_a_dockerfile() -> None:
     )
     assert not missing, f"services missing a Dockerfile (containerisation mandate): {missing}"
 
-
+{% endif %}
 # --- Markdown / docs -----------------------------------------------------------------
 
 
 def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
+{% if project_kind == 'workspace' -%}
     # A publishable workspace member may carry ONE README.md at its root (its PyPI
     # long-description). Permit exactly that — a file named README.md whose parent IS a
     # declared member root — and nothing else: no other filename, no deeper nesting, no
@@ -370,6 +440,7 @@ def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
         for match in REPO_ROOT.glob(glob)
         if match.is_dir()
     }
+{% endif %}
     offenders: list[str] = []
     for md in _iter_repo_files(".md"):
         rel = md.relative_to(REPO_ROOT)
@@ -377,18 +448,16 @@ def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
         if len(parts) == 1:
             if rel.name not in ROOT_MD_ALLOWLIST:
                 offenders.append(str(rel))
-        elif parts[0] in {"docs", ".github", ".claude"} or (
-            rel.name == "README.md" and rel.parent in member_roots
-        ):
+        elif parts[0] in {"docs", ".github", ".claude"}{{ ' or (\n            rel.name == "README.md" and rel.parent in member_roots\n        )' if project_kind == 'workspace' }}:
             continue
         else:
             offenders.append(str(rel))
     assert not offenders, (
-        "markdown outside root-allowlist / docs / .github / .claude / member README.md: "
+        "markdown outside root-allowlist / docs / .github / .claude{{ ' / member README.md' if project_kind == 'workspace' }}: "
         + repr(offenders)
     )
 
-
+{% if project_kind == 'workspace' %}
 def test_declared_member_readme_resolves() -> None:
     """A member's ``[project].readme`` must point at a file that exists.
 
@@ -416,7 +485,7 @@ def test_declared_member_readme_resolves() -> None:
             problems.append(f"{rel}: [project].readme={readme_file!r} does not exist")
     assert not problems, "dangling member readme reference:\n  " + "\n  ".join(problems)
 
-
+{% endif %}
 def test_docs_knowledge_artefacts_have_enum_valid_frontmatter() -> None:
     docs = REPO_ROOT / "docs"
     if not docs.is_dir():
@@ -425,8 +494,15 @@ def test_docs_knowledge_artefacts_have_enum_valid_frontmatter() -> None:
     for md in _drop_git_ignored(list(docs.rglob("*.md"))):
         if md.name.upper() == "README.MD":
             continue
-        fm = _read_frontmatter(md)
         rel = md.relative_to(REPO_ROOT)
+        # docs/sessions/ holds committed session handoffs (this repo's convention: handoffs are
+        # NOT git-ignored, unlike the template's default docs/sessions/ .gitignore entry) — an
+        # explicit path exemption so a consumer that COMMITS handoffs is not forced to carry L2
+        # frontmatter on them (mirrors the base gate's own docs/sessions/ fix; the indirect
+        # `_drop_git_ignored` exemption only covers the git-ignored case).
+        if rel.parts[:2] == ("docs", "sessions"):
+            continue
+        fm = _read_frontmatter(md)
         if fm is None:
             problems.append(f"{rel}: no YAML frontmatter")
             continue
