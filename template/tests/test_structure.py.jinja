@@ -1,7 +1,7 @@
 """Structure-lint gate (G1) — the {{ 'AI-monorepo' if project_kind == 'workspace' else 'stdlib-tools' }} archetype, encoded as executable tests.
 
 This file is the *executable form of the structure standard* for a {{ 'uv-workspace AI/agentic monorepo' if project_kind == 'workspace' else 'flat stdlib-only tools repo' }}.
-Each test FAILS on a real drift class (a stray ``.py``/``.md``, {{ 'a member missing ``py.typed``, ' if project_kind == 'workspace' else '' }}
+Each test FAILS on a real drift class (a stray ``.py``/``.md``,{{ ' a member missing ``py.typed``,' if project_kind == 'workspace' else '' }}
 off-vocabulary doc frontmatter{{ ', an unpinned Action' if project_kind == 'workspace' else '' }}) rather than merely checking
 presence — per the repo-hygiene Form-vs-Substance principle, a gate that asserts existence is
 gameable. (A full file-TYPE placement allowlist beyond ``.py``/``.md`` is Phase-2 scope.)
@@ -363,7 +363,7 @@ def test_package_imports_are_stdlib_only() -> None:
         offenders
     )
 
-{% endif %}
+{% endif -%}
 {% if project_kind == 'workspace' %}
 # --- Workspace member integrity ------------------------------------------------------
 
@@ -428,7 +428,7 @@ def test_every_service_ships_a_dockerfile() -> None:
 
 
 def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
-{% if project_kind == 'workspace' -%}
+{%- if project_kind == 'workspace' %}
     # A publishable workspace member may carry ONE README.md at its root (its PyPI
     # long-description). Permit exactly that — a file named README.md whose parent IS a
     # declared member root — and nothing else: no other filename, no deeper nesting, no
