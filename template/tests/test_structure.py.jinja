@@ -12,13 +12,18 @@ it satisfies; ``test_version_marker_matches_declaration`` ties it to the authori
 """
 
 from __future__ import annotations
-{% if project_kind == 'stdlib-tools' %}
+
+{% if project_kind == 'stdlib-tools' -%}
 import ast
+import re
+import subprocess
 import sys
-{% endif %}
+import tomllib
+{% else -%}
 import re
 import subprocess
 import tomllib
+{% endif -%}
 from pathlib import Path
 from typing import cast
 
@@ -359,9 +364,7 @@ def test_package_imports_are_stdlib_only() -> None:
         for root in _top_level_import_roots(py_file):
             if root not in allowed:
                 offenders.append(f"{rel}: imports {root!r} (not stdlib, not {PACKAGE_NAME!r})")
-    assert not offenders, "non-stdlib import in a stdlib-only package:\n  " + "\n  ".join(
-        offenders
-    )
+    assert not offenders, "non-stdlib import in a stdlib-only package:\n  " + "\n  ".join(offenders)
 
 {% endif -%}
 {% if project_kind == 'workspace' %}
@@ -456,10 +459,8 @@ def test_markdown_only_at_root_allowlist_or_under_docs() -> None:
             continue
         else:
             offenders.append(str(rel))
-    assert not offenders, (
-        "markdown outside root-allowlist / docs / .github / .claude{{ ' / member README.md' if project_kind == 'workspace' }}: "
-        + repr(offenders)
-    )
+    label = "markdown outside root-allowlist / docs / .github / .claude{{ ' / member README.md' if project_kind == 'workspace' }}"
+    assert not offenders, f"{label}: {offenders!r}"
 
 {% if project_kind == 'workspace' %}
 def test_declared_member_readme_resolves() -> None:

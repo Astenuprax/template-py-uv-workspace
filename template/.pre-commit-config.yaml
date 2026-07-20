@@ -37,7 +37,7 @@ repos:
 
   # --- python uv-workspace stack hooks (appended on top of the base layer) ---
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.2
+    rev: v0.15.22
     hooks:
       - id: ruff
         args: [--fix]
